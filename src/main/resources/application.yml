@@ -1,0 +1,81 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: stock-intelligence
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stockintel}
+    username: ${SPRING_DATASOURCE_USERNAME:stockintel}
+    password: ${SPRING_DATASOURCE_PASSWORD:stockintel}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+app:
+  market-data-provider: ${APP_MARKET_DATA_PROVIDER:alphavantage} # alphavantage | twelvedata
+  news-provider: ${APP_NEWS_PROVIDER:newsapi}                     # newsapi | gnews
+  ai-provider: ${APP_AI_PROVIDER:openai}                          # openai (OpenAI-compatible endpoint)
+  http:
+    connect-timeout-seconds: 10
+    read-timeout-seconds: 30
+  alpha-vantage:
+    api-key: ${ALPHAVANTAGE_API_KEY:}
+    base-url: https://www.alphavantage.co
+  twelve-data:
+    api-key: ${TWELVEDATA_API_KEY:}
+    base-url: https://api.twelvedata.com
+  news-api:
+    api-key: ${NEWSAPI_API_KEY:}
+    base-url: https://newsapi.org
+  gnews:
+    api-key: ${GNEWS_API_KEY:}
+    base-url: https://gnews.io
+  ai:
+    api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    model: ${AI_MODEL:gpt-4o-mini}
+    timeout-seconds: 120
+  analysis:
+    daily-move-pct: 5.0
+    weekly-decline-pct: 10.0
+    monthly-decline-pct: 15.0
+    volume-surge-multiple: 3.0
+    volume-average-days: 20
+    history-days: 90
+    news-days: 14
+    news-max-articles: 20
+  scheduling:
+    enabled: ${APP_SCHEDULING_ENABLED:true}
+    report-check-cron: "0 0 * * * *"
+    alert-monitor-cron: "0 0 */4 * * *"
+  notifications:
+    enabled: ${APP_NOTIFICATIONS_ENABLED:true}
+    default-recipient: ${NOTIFICATION_EMAIL_TO:}
+    from: ${NOTIFICATION_EMAIL_FROM:stock-intelligence@localhost}
+    report-severities: HIGH,CRITICAL
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

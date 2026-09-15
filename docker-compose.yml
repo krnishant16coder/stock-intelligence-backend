@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stockintel-postgres
+    environment:
+      POSTGRES_DB: stockintel
+      POSTGRES_USER: stockintel
+      POSTGRES_PASSWORD: stockintel
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: stockintel-mailhog
+    ports:
+      - "1025:1025"   # SMTP (SPRING_MAIL_HOST=localhost, SPRING_MAIL_PORT=1025)
+      - "8025:8025"   # Web UI http://localhost:8025
+
+volumes:
+  pgdata:

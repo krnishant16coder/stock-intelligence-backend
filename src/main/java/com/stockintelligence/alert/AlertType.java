@@ -1,0 +1,15 @@
+package com.stockintelligence.alert;
+
+public enum AlertType {
+    PRICE_SPIKE,
+    PRICE_DROP,
+    WEEKLY_DECLINE,
+    MONTHLY_DECLINE,
+    VOLUME_SURGE,
+    NEGATIVE_EARNINGS,
+    REGULATORY_RISK,
+    FRAUD_GOVERNANCE,
+    DEBT_RISK,
+    MANAGEMENT_CHANGE,
+    FUNDAMENTAL_DETERIORATION
+}
