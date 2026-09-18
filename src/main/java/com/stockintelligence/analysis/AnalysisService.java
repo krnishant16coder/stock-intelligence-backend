@@ -45,6 +45,8 @@ public class AnalysisService {
     private final NotificationService notifications;
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
+    /** Last AI call timestamp (pacing watchlist bursts under free TPM caps). */
+    private volatile long lastAiCallMs = 0;
 
     public AnalysisService(WatchlistService watchlists, MarketDataService marketData, NewsService news,
                            RuleMetricsService rules, AIAnalysisProvider aiProvider,
@@ -112,11 +114,15 @@ public class AnalysisService {
         }
         List<NewsArticle> articles = List.of();
         try {
-            articles = news.fetchAndStore(stock);
+            news.fetchAndStore(stock);
         } catch (Exception e) {
             log.warn("News fetch failed for {}: {}", stock.getSymbol(), e.getMessage());
-            articles = news.recentForStock(stock.getId(), properties.getAnalysis().getNewsDays());
         }
+        // Always build AI input from persisted recent news, not just freshly
+        // fetched rows. fetchAndStore() returns only NEW articles (deduplicated
+        // by URL), so re-running analysis would otherwise see zero news and the
+        // AI would return newsImpact=UNKNOWN even though coverage exists.
+        articles = news.recentForStock(stock.getId(), properties.getAnalysis().getNewsDays());
 
         // 3. Rule metrics from fresh provider history, else persisted bars.
         var history = (bundle != null && bundle.history() != null && !bundle.history().isEmpty())
@@ -126,6 +132,21 @@ public class AnalysisService {
                                 .minusDays(properties.getAnalysis().getHistoryDays()),
                         java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")));
         RuleMetrics metrics = rules.calculate(history);
+        if (metrics.insufficientData()) {
+            log.warn("No price history for {} ({}): fresh bars={}, persisted bars={}. "
+                    + "Check market-data provider rate limit / symbol mapping.",
+                    stock.getSymbol(), stock.getExchange(),
+                    bundle == null || bundle.history() == null ? 0 : bundle.history().size(),
+                    history == null ? 0 : history.size());
+        }
+        if (articles.isEmpty()) {
+            log.warn("No recent news for {} in last {} days", stock.getSymbol(),
+                    properties.getAnalysis().getNewsDays());
+        }
+        if (bundle != null && bundle.fundamentals() == null) {
+            log.info("Fundamentals unavailable for {} ({}); AI should infer from price/news, not UNKNOWN",
+                    stock.getSymbol(), stock.getExchange());
+        }
         String metricsJson;
         try {
             metricsJson = objectMapper.writeValueAsString(metrics);
@@ -134,17 +155,20 @@ public class AnalysisService {
         }
 
         // 4. AI contextual analysis (validated JSON; fallback on any failure).
+        // Cap news sent to the LLM: full newsMaxArticles are still stored for
+        // alerts/UI, but only maxNewsForAi go into the prompt (TPM guard).
         List<String> newsSummaries = articles.stream()
                 .map(a -> (a.getTitle() == null ? "" : a.getTitle())
                         + (a.getSummary() == null ? "" : " — " + a.getSummary())
                         + (a.getSource() == null ? "" : " [" + a.getSource() + "]"))
-                .limit(properties.getAnalysis().getNewsMaxArticles()).toList();
+                .limit(Math.max(1, properties.getAi().getMaxNewsForAi())).toList();
         StockAnalysisInput input = new StockAnalysisInput(stock.getSymbol(), stock.getCompanyName(),
                 stock.getExchange(), bundle == null ? null : bundle.quote(), metrics,
                 bundle == null ? null : bundle.fundamentals(), newsSummaries,
                 reportService.previousSignal(stock.getId()), trigger.name());
         StockAnalysisResult result;
         try {
+            paceAiCalls();
             result = aiProvider.analyze(input).normalized();
         } catch (Exception e) {
             log.warn("AI analysis failed for {}, using rule fallback: {}", stock.getSymbol(), e.getMessage());
@@ -158,6 +182,27 @@ public class AnalysisService {
             alerts.addAll(riskAlerts.evaluateAndCreate(stock, metrics, List.of(), result, null));
         }
         return new PerStockResult(result, metricsJson, alerts);
+    }
+
+    /**
+     * Space out LLM calls so a 10-stock watchlist does not burst through free
+     * TPM limits (e.g. Groq gpt-oss-120b: 8k TPM ≈ 4 calls/min at ~2k tokens).
+     * Skipped when minIntervalMs {@code <= 0} (tests / paid tiers).
+     */
+    private synchronized void paceAiCalls() {
+        long gap = properties.getAi().getMinIntervalMs();
+        if (gap <= 0) {
+            return;
+        }
+        long wait = lastAiCallMs + gap - System.currentTimeMillis();
+        if (wait > 0) {
+            try {
+                Thread.sleep(wait);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        lastAiCallMs = System.currentTimeMillis();
     }
 
     private String buildWatchlistSummary(String name, List<ReportService.AnalysisRow> rows) {

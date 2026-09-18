@@ -33,7 +33,7 @@ spring:
 
 app:
   market-data-provider: ${APP_MARKET_DATA_PROVIDER:alphavantage} # alphavantage | twelvedata
-  news-provider: ${APP_NEWS_PROVIDER:newsapi}                     # newsapi | gnews
+  news-provider: ${APP_NEWS_PROVIDER:newsapi}                     # newsapi | gnews | newsdata
   ai-provider: ${APP_AI_PROVIDER:openai}                          # openai (OpenAI-compatible endpoint)
   http:
     connect-timeout-seconds: 10
@@ -50,11 +50,17 @@ app:
   gnews:
     api-key: ${GNEWS_API_KEY:}
     base-url: https://gnews.io
+  newsdata:
+    api-key: ${NEWSDATA_API_KEY:}
+    base-url: https://newsdata.io
   ai:
     api-key: ${AI_API_KEY:}
     base-url: ${AI_BASE_URL:https://api.openai.com/v1}
     model: ${AI_MODEL:gpt-4o-mini}
     timeout-seconds: 120
+    max-news-for-ai: ${AI_MAX_NEWS_FOR_AI:6}
+    min-interval-ms: ${AI_MIN_INTERVAL_MS:12000}
+    max-tokens: ${AI_MAX_TOKENS:500}
   analysis:
     daily-move-pct: 5.0
     weekly-decline-pct: 10.0

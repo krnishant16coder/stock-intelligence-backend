@@ -42,7 +42,7 @@ All secrets via environment (see `.env.example`). Provider choice:
 | Purpose      | `APP_*` var               | Options                          |
 |--------------|---------------------------|----------------------------------|
 | Market data  | `APP_MARKET_DATA_PROVIDER`| `alphavantage` (default), `twelvedata` |
-| News         | `APP_NEWS_PROVIDER`       | `newsapi` (default), `gnews`     |
+| News         | `APP_NEWS_PROVIDER`       | `newsapi` (default), `gnews`, `newsdata` |
 | AI           | `APP_AI_PROVIDER`         | `openai` = any OpenAI-compatible `AI_BASE_URL` |
 
 Notes:
@@ -54,6 +54,18 @@ Notes:
 - NSE/BSE symbols map to vendor symbols (`RELIANCE`+`NSE` → `RELIANCE.NSE` for Alpha Vantage);
   symbols already containing a suffix pass through. Verify vendor coverage for your symbols.
 - Alert monitor runs every 4h by default (`app.scheduling.alert-monitor-cron`), independent of report frequency.
+- News providers (free tiers, 2026): `newsapi` 100 req/day, 24h delay, dev-only; `gnews`
+  100 req/day, 10 art/req, 12h delay, `country=in`, dev-only; `newsdata` (recommended
+  for NSE/BSE) 200 req/day, 10 art/req, 12h delay, `country=in`, commercial use allowed.
+  Set `APP_NEWS_PROVIDER=newsdata` + `NEWSDATA_API_KEY`. Free `newsdata` has no archive search,
+  so the 14-day window is filtered client-side and `news-max-articles` is capped at one page (~10).
+- AI free tiers: Groq `openai/gpt-oss-120b` is 8k TPM (~4 stocks/min at ~2k tokens/call —
+  expect 429s on big watchlists). Mitigations built in: prompt capped to `AI_MAX_NEWS_FOR_AI=6`
+  x 200 chars, `AI_MAX_TOKENS=500`, 429s retried 4x with backoff, watchlist calls paced by
+  `AI_MIN_INTERVAL_MS=12000`. Higher-burst swap with no code change:
+  `AI_MODEL=meta-llama/llama-4-scout-17b-16e-instruct` (30k TPM) or Gemini free
+  (`AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`,
+  `AI_MODEL=gemini-2.0-flash`). 429s still degrade gracefully to rule-based fallback.
 
 ## Tests
 

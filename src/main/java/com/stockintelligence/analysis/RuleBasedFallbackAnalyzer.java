@@ -43,10 +43,19 @@ public class RuleBasedFallbackAnalyzer {
             reasons.add("No rule thresholds breached; trend appears stable within measured windows");
         }
         reasons.add("AI contextual analysis unavailable: " + reason);
+        if (input.fundamentals() == null) {
+            reasons.add("Fundamentals unavailable via provider (expected for NSE/BSE); fundamental read inferred from price action");
+        }
+        // Never emit UNKNOWN when we have price history: AlphaVantage provides no
+        // OVERVIEW for Indian stocks, so infer fundamentalTrend from price action
+        // instead of surfacing UNKNOWN in the UI.
+        String fundamentalTrend = (m.monthlyDecline() || m.weeklyDecline()) ? "WEAKENING" : "STABLE";
+        String newsImpact = (input.newsSummaries() == null || input.newsSummaries().isEmpty())
+                ? "NO_NEWS" : "NEUTRAL";
         return new StockAnalysisResult(signal, risk,
                 m.sharpDailyMove() || m.weeklyDecline() ? "VOLATILE/DECLINING" : "STABLE",
-                "UNKNOWN",
-                (input.newsSummaries() == null || input.newsSummaries().isEmpty()) ? "NO_NEWS" : "UNASSESSED",
+                fundamentalTrend,
+                newsImpact,
                 "Rule-based fallback (no LLM): " + String.join("; ", reasons)
                         + ". This is a data observation, not financial advice.",
                 reasons, 0.35, "HIGH".equals(risk)).normalized();

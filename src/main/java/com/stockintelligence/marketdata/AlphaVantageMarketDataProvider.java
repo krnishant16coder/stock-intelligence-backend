@@ -27,7 +27,8 @@ import org.springframework.web.client.RestClient;
  * <p>Free tier notes (verify against current plan before relying on limits):
  * daily request caps apply, so history is fetched with a single
  * {@code TIME_SERIES_DAILY} call per stock and fundamentals are best-effort.
- * Indian equities use the {@code .NSE}/{@code .BSE} suffix convention; symbols
+ * Indian equities use the {@code .BSE} suffix convention (Alpha Vantage returns
+ * empty payloads for the {@code .NSE} form); symbols
  * already containing a suffix are passed through unchanged.
  */
 @Component
@@ -52,17 +53,25 @@ public class AlphaVantageMarketDataProvider implements MarketDataProvider {
         return "alphavantage";
     }
 
-    /** Maps (symbol, exchange) to the vendor symbol, e.g. RELIANCE + NSE -> RELIANCE.NSE. */
+    /** Maps (symbol, exchange) to the vendor symbol, e.g. RELIANCE + NSE -> RELIANCE.BSE.
+     * Alpha Vantage serves Indian equities under the BSE suffix; the .NSE form
+     * returns empty payloads, so both NSE and BSE map to .BSE. */
     public static String toVendorSymbol(String symbol, String exchange) {
-        if (symbol.contains(".")) {
-            return symbol.toUpperCase();
+        if (symbol == null || symbol.isBlank()) {
+            throw new IllegalArgumentException("Symbol must not be blank");
         }
-        String suffix = switch (exchange.toUpperCase()) {
-            case "NSE" -> ".NSE";
-            case "BSE" -> ".BSE";
-            default -> "";
-        };
-        return symbol.toUpperCase() + suffix;
+        String sym = symbol.toUpperCase().trim();
+        if (sym.contains(".")) {
+            return sym;
+        }
+        String ex = exchange == null ? "" : exchange.toUpperCase().trim();
+        // Accept common NSE/BSE variants (NSE_EQ, NS, BO, full names, etc.).
+        if (ex.equals("NSE") || ex.equals("BSE") || ex.contains("NSE") || ex.contains("BSE")
+                || ex.equals("NS") || ex.equals("BO")
+                || ex.contains("NATIONAL STOCK") || ex.contains("BOMBAY STOCK")) {
+            return sym + ".BSE";
+        }
+        return sym;
     }
 
     @Override
