@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -27,9 +27,9 @@ spring:
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SPRING_MAIL_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SPRING_MAIL_STARTTLS:false}
 
 app:
   market-data-provider: ${APP_MARKET_DATA_PROVIDER:alphavantage} # alphavantage | twelvedata
