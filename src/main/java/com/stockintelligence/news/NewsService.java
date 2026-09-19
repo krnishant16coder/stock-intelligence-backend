@@ -25,10 +25,29 @@ public class NewsService {
     private final NewsArticleRepository repository;
     private final AppProperties properties;
 
-    public NewsService(NewsProvider provider, NewsArticleRepository repository, AppProperties properties) {
-        this.provider = provider;
+    public NewsService(List<NewsProvider> providers, NewsArticleRepository repository,
+            AppProperties properties) {
         this.repository = repository;
         this.properties = properties;
+        String configured = properties.getNewsProvider() == null ? ""
+                : properties.getNewsProvider().trim().toLowerCase();
+        this.provider = providers.stream()
+                .filter(p -> p.providerName() != null
+                        && p.providerName().trim().equalsIgnoreCase(configured))
+                .findFirst()
+                .orElseGet(() -> {
+                    // Prefer a real provider over the "none" fallback.
+                    return providers.stream()
+                            .filter(p -> !"none".equalsIgnoreCase(p.providerName()))
+                            .findFirst().orElse(providers.get(0));
+                });
+        if (!this.provider.providerName().equalsIgnoreCase(configured)) {
+            log.warn("app.news-provider='{}' unrecognized; using '{}' instead. Available: {}",
+                    properties.getNewsProvider(), this.provider.providerName(),
+                    providers.stream().map(NewsProvider::providerName).toList());
+        } else {
+            log.info("News provider: {}", this.provider.providerName());
+        }
     }
 
     @Transactional

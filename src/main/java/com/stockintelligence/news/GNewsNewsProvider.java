@@ -51,7 +51,11 @@ public class GNewsNewsProvider implements NewsProvider {
         try {
             String body = restClient.get().uri(uriBuilder -> uriBuilder
                     .path("/api/v4/search")
-                    .queryParam("q", companyName + " " + symbol + " stock")
+                    // Company name only: strict multi-word AND queries
+                    // (e.g. "HDFC Bank HDFCBANK stock") return zero articles
+                    // for most symbols, while the name alone matches thousands.
+                    .queryParam("q", (companyName != null && !companyName.isBlank())
+                            ? companyName : symbol + " stock")
                     .queryParam("lang", "en")
                     .queryParam("country", "in")
                     .queryParam("max", Math.min(properties.getAnalysis().getNewsMaxArticles(), 100))

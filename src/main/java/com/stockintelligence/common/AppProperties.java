@@ -13,7 +13,7 @@ public class AppProperties {
 
     /** Active market-data provider key: {@code alphavantage} (default) or {@code twelvedata}. */
     private String marketDataProvider = "alphavantage";
-    /** Active news provider key: {@code newsapi} (default) or {@code gnews}. */
+    /** Active news provider key: {@code newsapi} (default), {@code gnews} or {@code newsdata}. */
     private String newsProvider = "newsapi";
     /** Active AI provider key: {@code openai} (default, OpenAI-compatible endpoint). */
     private String aiProvider = "openai";
@@ -22,6 +22,7 @@ public class AppProperties {
     private final TwelveData twelveData = new TwelveData();
     private final NewsApi newsApi = new NewsApi();
     private final GNews gnews = new GNews();
+    private final NewsData newsData = new NewsData();
     private final Ai ai = new Ai();
     private final Analysis analysis = new Analysis();
     private final Scheduling scheduling = new Scheduling();
@@ -37,6 +38,7 @@ public class AppProperties {
     public TwelveData getTwelveData() { return twelveData; }
     public NewsApi getNewsApi() { return newsApi; }
     public GNews getGnews() { return gnews; }
+    public NewsData getNewsData() { return newsData; }
     public Ai getAi() { return ai; }
     public Analysis getAnalysis() { return analysis; }
     public Scheduling getScheduling() { return scheduling; }
@@ -78,11 +80,26 @@ public class AppProperties {
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     }
 
+    public static class NewsData {
+        private String apiKey = "";
+        private String baseUrl = "https://newsdata.io";
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+    }
+
     public static class Ai {
         private String apiKey = "";
         private String baseUrl = "https://api.openai.com/v1";
         private String model = "gpt-4o-mini";
         private int timeoutSeconds = 120;
+        /** Max news summaries sent per AI call (token guard for free TPM caps). */
+        private int maxNewsForAi = 6;
+        /** Min gap between AI calls in ms (paces watchlist bursts under TPM limits). */
+        private long minIntervalMs = 12000;
+        /** Cap on AI completion tokens (output also counts toward TPM). */
+        private int maxTokens = 500;
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
         public String getBaseUrl() { return baseUrl; }
@@ -91,6 +108,12 @@ public class AppProperties {
         public void setModel(String model) { this.model = model; }
         public int getTimeoutSeconds() { return timeoutSeconds; }
         public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+        public int getMaxNewsForAi() { return maxNewsForAi; }
+        public void setMaxNewsForAi(int v) { this.maxNewsForAi = v; }
+        public long getMinIntervalMs() { return minIntervalMs; }
+        public void setMinIntervalMs(long v) { this.minIntervalMs = v; }
+        public int getMaxTokens() { return maxTokens; }
+        public void setMaxTokens(int v) { this.maxTokens = v; }
     }
 
     /** Deterministic rule thresholds for metrics + alert detection. */
