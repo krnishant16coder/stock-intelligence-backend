@@ -58,6 +58,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'stockintel-api-new'
-          slot-name: 'Production'
           package: '*.jar'
           
