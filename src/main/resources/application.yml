@@ -8,6 +8,18 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stockintel}
     username: ${SPRING_DATASOURCE_USERNAME:stockintel}
     password: ${SPRING_DATASOURCE_PASSWORD:stockintel}
+    hikari:
+      # Neon pooled connections are closed server-side after a few minutes idle.
+      # Defaults must stay well below that or you get
+      # "Failed to validate connection ... has been closed" warnings.
+      # Hikari default max-lifetime is 30 min which is far too long for Neon/PgBouncer.
+      max-lifetime: ${HIKARI_MAX_LIFETIME:300000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:60000}
+      keepalive-time: ${HIKARI_KEEPALIVE_TIME:30000}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:10000}
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:3000}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:5}
+      minimum-idle: ${HIKARI_MIN_IDLE:1}
   jpa:
     hibernate:
       ddl-auto: validate
