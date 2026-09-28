@@ -84,9 +84,9 @@ public class AnalysisService {
                 log.error("Analysis failed for {}: {}", stock.getSymbol(), e.getMessage());
                 StockAnalysisResult insufficient = new StockAnalysisResult("INSUFFICIENT_DATA", "MEDIUM",
                         "UNKNOWN", "UNKNOWN", "UNKNOWN",
-                        "Analysis failed: " + e.getMessage()
-                                + ". This is a system limitation, not financial advice.",
-                        List.of("Pipeline error: " + e.getMessage()), 0.1, false).normalized();
+                        "Analysis pipeline failed for this stock; no action can be justified from data. "
+                                + "This is a system limitation, not financial advice.",
+                        List.of("Pipeline error; details in server logs"), 0.1, false).normalized();
                 rows.add(new ReportService.AnalysisRow(stock, insufficient, "{}"));
             }
         }

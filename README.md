@@ -59,10 +59,12 @@ Notes:
   for NSE/BSE) 200 req/day, 10 art/req, 12h delay, `country=in`, commercial use allowed.
   Set `APP_NEWS_PROVIDER=newsdata` + `NEWSDATA_API_KEY`. Free `newsdata` has no archive search,
   so the 14-day window is filtered client-side and `news-max-articles` is capped at one page (~10).
-- AI free tiers: Groq `openai/gpt-oss-120b` is 8k TPM (~4 stocks/min at ~2k tokens/call —
-  expect 429s on big watchlists). Mitigations built in: prompt capped to `AI_MAX_NEWS_FOR_AI=6`
-  x 200 chars, `AI_MAX_TOKENS=500`, 429s retried 4x with backoff, watchlist calls paced by
-  `AI_MIN_INTERVAL_MS=12000`. Higher-burst swap with no code change:
+- AI free tiers: Groq `openai/gpt-oss-120b` is 8k TPM (~6 stocks/min at ~1.2k tokens/call —
+  expect 429s on big watchlists). Mitigations built in: prompt capped to `AI_MAX_NEWS_FOR_AI=3`
+  x 120 chars, `AI_MAX_TOKENS=500`, 429s retried 4x with backoff, watchlist calls paced by
+  `AI_MIN_INTERVAL_MS=12000`. Note: gpt-oss models lack JSON mode, so the app skips
+  `response_format` for them (override with `AI_JSON_MODE=false` for other models).
+  Higher-burst swap with no code change:
   `AI_MODEL=meta-llama/llama-4-scout-17b-16e-instruct` (30k TPM) or Gemini free
   (`AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`,
   `AI_MODEL=gemini-2.0-flash`). 429s still degrade gracefully to rule-based fallback.

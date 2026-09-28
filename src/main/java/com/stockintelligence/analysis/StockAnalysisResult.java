@@ -14,11 +14,11 @@ public record StockAnalysisResult(String signal, String riskLevel, String priceT
     private static final List<String> RISKS = List.of("LOW", "MEDIUM", "HIGH", "CRITICAL");
 
     public StockAnalysisResult normalized() {
-        String sig = signal == null ? "INSUFFICIENT_DATA" : signal.toUpperCase().trim();
+        String sig = aliasSignal(signal);
         if (!SIGNALS.contains(sig)) {
             throw new IllegalArgumentException("Invalid AI signal: " + signal);
         }
-        String risk = riskLevel == null ? "MEDIUM" : riskLevel.toUpperCase().trim();
+        String risk = aliasRisk(riskLevel);
         if (!RISKS.contains(risk)) {
             throw new IllegalArgumentException("Invalid AI riskLevel: " + riskLevel);
         }
@@ -33,5 +33,30 @@ public record StockAnalysisResult(String signal, String riskLevel, String priceT
 
     private static String orDefault(String v, String d) {
         return (v == null || v.isBlank()) ? d : v.trim();
+    }
+
+    /** Map common model near-misses to the strict signal enum. */
+    static String aliasSignal(String signal) {
+        if (signal == null || signal.isBlank()) {
+            return "INSUFFICIENT_DATA";
+        }
+        return switch (signal.strip().toUpperCase().replace('-', '_').replace(' ', '_')) {
+            case "BUY" -> "BUY_MORE";
+            case "SELL", "HIGH_RISK" -> "HIGH_RISK";
+            case "WATCH", "WATCHLIST" -> "REVIEW";
+            default -> signal.strip().toUpperCase().replace('-', '_').replace(' ', '_');
+        };
+    }
+
+    /** Map common model near-misses to the strict risk enum. */
+    static String aliasRisk(String riskLevel) {
+        if (riskLevel == null || riskLevel.isBlank()) {
+            return "MEDIUM";
+        }
+        return switch (riskLevel.strip().toUpperCase()) {
+            case "MODERATE", "MED" -> "MEDIUM";
+            case "CRIT", "SEVERE" -> "CRITICAL";
+            default -> riskLevel.strip().toUpperCase();
+        };
     }
 }

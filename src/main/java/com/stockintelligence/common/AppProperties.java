@@ -100,6 +100,12 @@ public class AppProperties {
         private long minIntervalMs = 12000;
         /** Cap on AI completion tokens (output also counts toward TPM). */
         private int maxTokens = 500;
+        /**
+         * Request strict JSON output via {@code response_format}. Disable for
+         * models without JSON mode (e.g. Groq gpt-oss); the provider also
+         * auto-disables for known model names — see OpenAiAnalysisProvider.
+         */
+        private boolean jsonMode = true;
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
         public String getBaseUrl() { return baseUrl; }
@@ -114,6 +120,8 @@ public class AppProperties {
         public void setMinIntervalMs(long v) { this.minIntervalMs = v; }
         public int getMaxTokens() { return maxTokens; }
         public void setMaxTokens(int v) { this.maxTokens = v; }
+        public boolean isJsonMode() { return jsonMode; }
+        public void setJsonMode(boolean v) { this.jsonMode = v; }
     }
 
     /** Deterministic rule thresholds for metrics + alert detection. */
