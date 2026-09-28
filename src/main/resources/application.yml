@@ -70,9 +70,10 @@ app:
     base-url: ${AI_BASE_URL:https://api.openai.com/v1}
     model: ${AI_MODEL:gpt-4o-mini}
     timeout-seconds: 120
-    max-news-for-ai: ${AI_MAX_NEWS_FOR_AI:6}
+    max-news-for-ai: ${AI_MAX_NEWS_FOR_AI:3}
     min-interval-ms: ${AI_MIN_INTERVAL_MS:12000}
     max-tokens: ${AI_MAX_TOKENS:500}
+    json-mode: ${AI_JSON_MODE:true}
   analysis:
     daily-move-pct: 5.0
     weekly-decline-pct: 10.0

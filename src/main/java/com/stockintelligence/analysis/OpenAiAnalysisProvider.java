@@ -30,6 +30,15 @@ public class OpenAiAnalysisProvider implements AIAnalysisProvider {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiAnalysisProvider.class);
 
+    /** Max chars per news summary sent to the LLM (input-token guard). */
+    static final int NEWS_CHARS = 120;
+    /** Max chars of fundamentals string sent to the LLM. */
+    static final int FUNDAMENTALS_CHARS = 200;
+    /** Model-name fragments known to lack JSON-mode support (e.g. Groq gpt-oss). */
+    static final List<String> NO_JSON_MODE_MODELS = List.of("gpt-oss");
+    /** Reasoning-model families needing an explicit effort cap (same list). */
+    static final List<String> REASONING_MODELS = List.of("gpt-oss");
+
     static final String SYSTEM_PROMPT = """
             You are a stock research assistant. Analyze the given Indian equity using ONLY the provided
             market metrics, fundamentals and news summaries. These signals are analytical observations,
@@ -88,8 +97,14 @@ public class OpenAiAnalysisProvider implements AIAnalysisProvider {
             payload.put("model", properties.getAi().getModel());
             payload.put("temperature", 0.2);
             payload.put("max_tokens", Math.max(200, properties.getAi().getMaxTokens()));
-            ObjectNode format = payload.putObject("response_format");
-            format.put("type", "json_object");
+            if (shouldUseJsonMode(properties.getAi().getModel(), properties.getAi().isJsonMode())) {
+                ObjectNode format = payload.putObject("response_format");
+                format.put("type", "json_object");
+            }
+            String effort = reasoningEffort(properties.getAi().getModel());
+            if (effort != null) {
+                payload.put("reasoning_effort", effort);
+            }
             ArrayNode messages = payload.putArray("messages");
             messages.addObject().put("role", "system").put("content", SYSTEM_PROMPT);
             messages.addObject().put("role", "user").put("content", renderUserPrompt(input,
@@ -106,7 +121,7 @@ public class OpenAiAnalysisProvider implements AIAnalysisProvider {
             if (content == null || content.isBlank()) {
                 throw new ExternalProviderException("AI provider returned empty content");
             }
-            StockAnalysisResult parsed = objectMapper.readValue(content, StockAnalysisResult.class);
+            StockAnalysisResult parsed = parseResult(content);
             StockAnalysisResult result = parsed.normalized();
             log.info("AI analysis for {}: signal={} risk={} confidence={}",
                     input.symbol(), result.signal(), result.riskLevel(), result.confidence());
@@ -146,11 +161,11 @@ public class OpenAiAnalysisProvider implements AIAnalysisProvider {
         String news = (in.newsSummaries() == null || in.newsSummaries().isEmpty())
                 ? "No recent company news available."
                 : in.newsSummaries().stream().limit(Math.max(1, maxNews))
-                        .map(s -> "- " + truncate(s, 200)).collect(Collectors.joining("\n"));
+                        .map(s -> "- " + truncate(s, NEWS_CHARS)).collect(Collectors.joining("\n"));
         RuleMetrics m = in.ruleMetrics();
         String fundamentals = in.fundamentals() == null
                 ? "unavailable (NSE/BSE: infer from price+news)"
-                : truncate(in.fundamentals().toString(), 300);
+                : truncate(in.fundamentals().toString(), FUNDAMENTALS_CHARS);
         return """
                 Stock: %s (%s, %s) | Period: %s
                 Latest price: %s | Daily: %s%% | Weekly: %s%% | Monthly: %s%% | Volume vs avg: %s
@@ -182,6 +197,65 @@ public class OpenAiAnalysisProvider implements AIAnalysisProvider {
     /** 429s are transient TPM bursts; everything else 4xx/5xx fails fast. */
     static boolean isRateLimited(RestClientResponseException e) {
         return e != null && e.getStatusCode().value() == 429;
+    }
+
+    /**
+     * Whether to send {@code response_format: json_object}. Honors the explicit
+     * {@code app.ai.json-mode} flag and auto-disables for model families known
+     * to reject it (Groq gpt-oss answers 400 json_validate_failed otherwise).
+     */
+    static boolean shouldUseJsonMode(String model, boolean configured) {
+        if (!configured) {
+            return false;
+        }
+        if (model == null) {
+            return true;
+        }
+        String name = model.toLowerCase(java.util.Locale.ROOT);
+        return NO_JSON_MODE_MODELS.stream().noneMatch(name::contains);
+    }
+
+    /**
+     * Reasoning effort for thinking models. gpt-oss burns hundreds of completion
+     * tokens on reasoning and starves the answer under small max_tokens caps
+     * (truncated JSON / empty content), so cap it at "low" — these are small
+     * classification-style tasks. Returns null for regular models.
+     */
+    static String reasoningEffort(String model) {
+        if (model == null) {
+            return null;
+        }
+        String name = model.toLowerCase(java.util.Locale.ROOT);
+        return REASONING_MODELS.stream().anyMatch(name::contains) ? "low" : null;
+    }
+
+    /** Parse model output, tolerating ``` fences or surrounding chatter. */
+    StockAnalysisResult parseResult(String content) throws Exception {
+        try {
+            return objectMapper.readValue(content, StockAnalysisResult.class);
+        } catch (IllegalArgumentException e) {
+            String extracted = extractJson(content);
+            if (extracted != null) {
+                return objectMapper.readValue(extracted, StockAnalysisResult.class);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Extract the JSON object between the first '{' and last '}'. Returns null
+     * when no object braces are present.
+     */
+    static String extractJson(String content) {
+        if (content == null) {
+            return null;
+        }
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        return content.substring(start, end + 1);
     }
 
     static String truncate(String s, int max) {        if (s == null) {

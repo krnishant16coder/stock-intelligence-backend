@@ -27,6 +27,18 @@ class StockAnalysisResultTest {
     }
 
     @Test
+    void aliasesCommonModelNearMisses() {
+        assertThat(new StockAnalysisResult("BUY", "moderate", null, null, null,
+                "x", List.of(), 0.5, false).normalized().signal()).isEqualTo("BUY_MORE");
+        assertThat(new StockAnalysisResult("BUY", "moderate", null, null, null,
+                "x", List.of(), 0.5, false).normalized().riskLevel()).isEqualTo("MEDIUM");
+        assertThat(new StockAnalysisResult("sell", "LOW", null, null, null,
+                "x", List.of(), 0.5, false).normalized().signal()).isEqualTo("HIGH_RISK");
+        assertThat(new StockAnalysisResult("watch", "LOW", null, null, null,
+                "x", List.of(), 0.5, false).normalized().signal()).isEqualTo("REVIEW");
+    }
+
+    @Test
     void clampsConfidence() {
         StockAnalysisResult r = new StockAnalysisResult("HOLD", "LOW", null, null, null,
                 "x", List.of(), 42.0, false).normalized();

@@ -15,9 +15,10 @@ public class RuleBasedFallbackAnalyzer {
         RuleMetrics m = input.ruleMetrics();
         if (m == null || m.insufficientData()) {
             return new StockAnalysisResult("INSUFFICIENT_DATA", "MEDIUM", "UNKNOWN", "UNKNOWN",
-                    "UNKNOWN", "AI analysis unavailable (" + reason + ") and price history is "
+                    "UNKNOWN", "AI analysis is unavailable and price history is "
                             + "insufficient for a rule-based read. No action can be justified from data.",
-                    List.of("Market data unavailable or incomplete", "AI provider error: " + reason),
+                    List.of("Market data unavailable or incomplete",
+                            "AI provider unavailable; showing rule-based read"),
                     0.2, false).normalized();
         }
         List<String> reasons = new ArrayList<>();
@@ -42,7 +43,7 @@ public class RuleBasedFallbackAnalyzer {
         if (reasons.isEmpty()) {
             reasons.add("No rule thresholds breached; trend appears stable within measured windows");
         }
-        reasons.add("AI contextual analysis unavailable: " + reason);
+        reasons.add("AI contextual analysis unavailable; showing rule-based read");
         if (input.fundamentals() == null) {
             reasons.add("Fundamentals unavailable via provider (expected for NSE/BSE); fundamental read inferred from price action");
         }

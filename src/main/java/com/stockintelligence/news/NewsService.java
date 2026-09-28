@@ -48,6 +48,24 @@ public class NewsService {
         } else {
             log.info("News provider: {}", this.provider.providerName());
         }
+        String apiKey = apiKeyFor(this.provider.providerName());
+        if (apiKey == null || apiKey.isBlank() || apiKey.strip().startsWith("your_key")) {
+            log.warn("News provider '{}' API key is not configured; news will be empty "
+                    + "(set the matching key var, e.g. NEWSDATA_API_KEY when using newsdata)",
+                    this.provider.providerName());
+        }
+    }
+
+    private String apiKeyFor(String providerName) {
+        if (providerName == null) {
+            return null;
+        }
+        return switch (providerName.strip().toLowerCase()) {
+            case "newsapi" -> properties.getNewsApi().getApiKey();
+            case "gnews" -> properties.getGnews().getApiKey();
+            case "newsdata" -> properties.getNewsData().getApiKey();
+            default -> null;
+        };
     }
 
     @Transactional
