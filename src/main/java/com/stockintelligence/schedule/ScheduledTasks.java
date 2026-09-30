@@ -11,6 +11,8 @@ import com.stockintelligence.marketdata.MarketDataService;
 import com.stockintelligence.news.NewsArticle;
 import com.stockintelligence.news.NewsService;
 import com.stockintelligence.notification.NotificationService;
+import com.stockintelligence.report.ReportResponse;
+import com.stockintelligence.report.StockAnalysisResponse;
 import com.stockintelligence.report.TriggerType;
 import com.stockintelligence.stock.Stock;
 import com.stockintelligence.watchlist.Watchlist;
@@ -19,6 +21,7 @@ import com.stockintelligence.watchlist.WatchlistService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,8 +111,61 @@ public class ScheduledTasks {
         }
     }
 
-    private void checkStock(Stock stock) {
-        MarketDataService.MarketDataBundle bundle;
+    /**
+     * Daily market-close digest: analyzes every active watchlist after NSE close
+     * and mails one combined report covering the whole portfolio — even when
+     * nothing is HIGH/CRITICAL (unlike severity-gated report mails).
+     * Zone is pinned to Asia/Kolkata so Azure's UTC default can't shift it.
+     */
+    @Scheduled(cron = "${app.scheduling.eod-digest-cron:0 0 16 * * MON-FRI}", zone = "Asia/Kolkata")
+    public void sendEodDigest() {
+        if (!properties.getScheduling().isEnabled()) {
+            return;
+        }
+        List<Watchlist> active = watchlistRepository.findAllByActiveTrue();
+        if (active.isEmpty()) {
+            log.info("EOD digest: no active watchlists");
+            return;
+        }
+        List<ReportResponse> reports = new ArrayList<>();
+        int stocks = 0;
+        for (Watchlist watchlist : active) {
+            try {
+                ReportResponse report = analysis.analyzeWatchlist(watchlist.getId(), TriggerType.EOD);
+                reports.add(report);
+                stocks += report.stocksAnalyzed();
+            } catch (Exception e) {
+                log.error("EOD digest: analysis failed for watchlist {}: {}",
+                        watchlist.getId(), e.getMessage());
+            }
+        }
+        if (reports.isEmpty()) {
+            log.warn("EOD digest: all analyses failed, no email sent");
+            return;
+        }
+        String dateLabel = today().toString();
+        StringBuilder body = new StringBuilder();
+        for (ReportResponse report : reports) {
+            body.append("== ").append(report.watchlistName())
+                    .append(" (report #").append(report.id()).append(") ==\n")
+                    .append(report.summary()).append("\n");
+            for (StockAnalysisResponse a : report.analyses()) {
+                String summary = a.summary() == null ? "" : a.summary();
+                if (summary.length() > 300) {
+                    summary = summary.substring(0, 300) + "...";
+                }
+                body.append("- %s (%s): %s/%s price=%s fund=%s news=%s%s\n  %s\n".formatted(
+                        a.symbol(), a.companyName(), a.signal(), a.riskLevel(),
+                        a.priceTrend(), a.fundamentalTrend(), a.newsImpact(),
+                        a.criticalAlert() ? " CRITICAL-ALERT" : "", summary));
+            }
+            body.append("View: GET /api/reports/").append(report.id()).append("\n\n");
+        }
+        notifications.sendEodDigestEmail(dateLabel, reports.size(), stocks, body.toString());
+        log.info("EOD digest: mailed {} watchlists, {} stocks for {}", reports.size(), stocks, dateLabel);
+    }
+
+    private void checkStock(Stock stock) {        MarketDataService.MarketDataBundle bundle;
         try {
             bundle = marketData.fetchAndStore(stock);
         } catch (Exception e) {
