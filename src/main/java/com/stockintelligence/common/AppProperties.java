@@ -158,12 +158,16 @@ public class AppProperties {
         private String reportCheckCron = "0 0 * * * *";
         /** Cron for independent critical-alert monitoring. */
         private String alertMonitorCron = "0 0 */4 * * *";
+        /** Cron for the daily market-close digest (whole portfolio, always mailed). */
+        private String eodDigestCron = "0 0 16 * * MON-FRI";
         private boolean enabled = true;
 
         public String getReportCheckCron() { return reportCheckCron; }
         public void setReportCheckCron(String v) { this.reportCheckCron = v; }
         public String getAlertMonitorCron() { return alertMonitorCron; }
         public void setAlertMonitorCron(String v) { this.alertMonitorCron = v; }
+        public String getEodDigestCron() { return eodDigestCron; }
+        public void setEodDigestCron(String v) { this.eodDigestCron = v; }
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean v) { this.enabled = v; }
     }

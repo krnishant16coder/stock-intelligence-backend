@@ -89,6 +89,7 @@ app:
     enabled: ${APP_SCHEDULING_ENABLED:true}
     report-check-cron: "0 0 * * * *"
     alert-monitor-cron: "0 0 */4 * * *"
+    eod-digest-cron: ${EOD_DIGEST_CRON:0 0 16 * * MON-FRI}
   notifications:
     enabled: ${APP_NOTIFICATIONS_ENABLED:true}
     default-recipient: ${NOTIFICATION_EMAIL_TO:}

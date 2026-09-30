@@ -52,6 +52,18 @@ public class NotificationService {
                         watchlistName, reportId, summary, reportId));
     }
 
+    /**
+     * Daily market-close digest (whole portfolio). Unlike {@link #sendReportEmail},
+     * this always sends — it bypasses the HIGH/CRITICAL severity gate by design.
+     * Still respects the enabled flag + recipient (logs SKIPPED when off).
+     */
+    @Transactional
+    public void sendEodDigestEmail(String dateLabel, int watchlistCount, int stockCount, String body) {
+        send(null, "EOD digest — %s (%d watchlists, %d stocks)".formatted(dateLabel, watchlistCount, stockCount),
+                "Market-close digest for %s\nWatchlists: %d, stocks: %d\n\n%s\n".formatted(
+                        dateLabel, watchlistCount, stockCount, body));
+    }
+
     private void send(Alert alert, String subject, String body) {
         NotificationLog entry = new NotificationLog();
         entry.setAlert(alert);
