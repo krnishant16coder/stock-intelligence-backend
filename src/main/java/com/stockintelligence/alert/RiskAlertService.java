@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,11 +34,19 @@ public class RiskAlertService {
     private final AlertRepository repository;
     private final AIAnalysisProvider aiProvider;
     private final AppProperties properties;
+    private final AlertRuleRepository rules;
 
     public RiskAlertService(AlertRepository repository, AIAnalysisProvider aiProvider, AppProperties properties) {
+        this(repository, aiProvider, properties, null);
+    }
+
+    @Autowired
+    public RiskAlertService(AlertRepository repository, AIAnalysisProvider aiProvider,
+                            AppProperties properties, AlertRuleRepository rules) {
         this.repository = repository;
         this.aiProvider = aiProvider;
         this.properties = properties;
+        this.rules = rules;
     }
 
     public record AlertCandidate(AlertType type, Severity severity, String message, String dedupKey) {}
@@ -73,7 +82,70 @@ public class RiskAlertService {
             created.add(repository.save(alert));
             log.info("Alert created: {} {} {}", stock.getSymbol(), c.type(), severity);
         }
+        created.addAll(evaluateTripwires(stock, metrics));
         return created;
+    }
+
+    /**
+     * User-defined price tripwires. A breach creates an alert with the rule's severity
+     * (HIGH by default, so it mails instantly like other HIGHs). Cooldown is enforced
+     * per rule on top of the per-day dedup key.
+     */
+    List<Alert> evaluateTripwires(Stock stock, RuleMetrics metrics) {
+        List<Alert> created = new ArrayList<>();
+        if (rules == null || metrics == null || metrics.insufficientData()
+                || metrics.dailyChangePct() == null) {
+            return created;
+        }
+        String bucket = LocalDate.now(ZONE).toString();
+        double move = metrics.dailyChangePct();
+        for (AlertRule rule : rules.findByStockIdAndActiveTrue(stock.getId())) {
+            if (!rule.isActive()) {
+                continue;
+            }
+            if (!breached(rule, move)) {
+                continue;
+            }
+            if (rule.getLastTriggeredAt() != null && java.time.Duration.between(
+                    rule.getLastTriggeredAt(), java.time.Instant.now())
+                    .compareTo(java.time.Duration.ofHours(rule.getCooldownHours())) < 0) {
+                continue;
+            }
+            String dedupKey = stock.getId() + "|TRIPWIRE-" + rule.getId() + "|" + bucket;
+            if (repository.existsByDedupKey(dedupKey)) {
+                continue;
+            }
+            Alert alert = new Alert();
+            alert.setStock(stock);
+            alert.setAlertType(AlertType.PRICE_TRIPWIRE);
+            alert.setSeverity(rule.getSeverity());
+            alert.setMessage("%s moved %s%.2f%% today to %s (your tripwire: %s%.1f%%).".formatted(
+                    stock.getSymbol(), move > 0 ? "+" : "", move, metrics.latestPrice(),
+                    directionWord(rule.getDirection()), rule.getThresholdPct()));
+            alert.setDedupKey(dedupKey);
+            created.add(repository.save(alert));
+            rule.setLastTriggeredAt(java.time.Instant.now());
+            rules.save(rule);
+            log.info("Tripwire breached: {} rule {} ({}%)", stock.getSymbol(), rule.getId(),
+                    rule.getThresholdPct());
+        }
+        return created;
+    }
+
+    private static boolean breached(AlertRule rule, double move) {
+        return switch (rule.getDirection()) {
+            case UP -> move >= rule.getThresholdPct();
+            case DOWN -> move <= -rule.getThresholdPct();
+            case BOTH -> Math.abs(move) >= rule.getThresholdPct();
+        };
+    }
+
+    private static String directionWord(PriceDirection direction) {
+        return switch (direction) {
+            case UP -> "+";
+            case DOWN -> "-";
+            case BOTH -> "±";
+        };
     }
 
     List<AlertCandidate> detect(Stock stock, RuleMetrics m, List<NewsArticle> news) {
