@@ -22,6 +22,9 @@ class TestMailControllerTest {
     @MockBean
     NotificationService notifications;
 
+    @MockBean
+    com.stockintelligence.schedule.ScheduledTasks scheduledTasks;
+
     @Test
     void sendsTestMailToConfiguredRecipient() throws Exception {
         when(notifications.sendTestEmail()).thenReturn(
@@ -48,5 +51,13 @@ class TestMailControllerTest {
         MailTemplate.MailBodies bodies = MailTemplate.testMail("krnishant16@gmail.com");
         assertThat(bodies.plain()).contains("krnishant16@gmail.com");
         assertThat(bodies.html()).contains("EOD market-close digest");
+    }
+
+    @Test
+    void triggersRealEodDigest() throws Exception {
+        mvc.perform(post("/api/admin/eod-digest"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.triggered").value(true));
+        verify(scheduledTasks).sendEodDigest();
     }
 }
