@@ -235,7 +235,7 @@ public class AnalysisService {
                 properties.getNotifications().getReportSeverities().contains(r.result().riskLevel())
                         || Boolean.TRUE.equals(r.result().criticalAlert()));
         if (notable) {
-            notifications.sendReportEmail(watchlistName, report.id(), report.summary());
+            notifications.sendReportEmail(watchlistName, report.id(), report.summary(), rows);
         } else {
             log.info("Report #{} has no notable risks; summary email skipped", report.id());
         }

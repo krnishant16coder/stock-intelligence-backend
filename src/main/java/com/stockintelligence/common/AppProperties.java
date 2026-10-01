@@ -17,6 +17,8 @@ public class AppProperties {
     private String newsProvider = "newsapi";
     /** Active AI provider key: {@code openai} (default, OpenAI-compatible endpoint). */
     private String aiProvider = "openai";
+    /** Public base URL of this backend, used for clickable links in mails (empty = relative links). */
+    private String baseUrl = "";
 
     private final AlphaVantage alphaVantage = new AlphaVantage();
     private final TwelveData twelveData = new TwelveData();
@@ -34,6 +36,8 @@ public class AppProperties {
     public void setNewsProvider(String newsProvider) { this.newsProvider = newsProvider; }
     public String getAiProvider() { return aiProvider; }
     public void setAiProvider(String aiProvider) { this.aiProvider = aiProvider; }
+    public String getBaseUrl() { return baseUrl; }
+    public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl == null ? "" : baseUrl; }
     public AlphaVantage getAlphaVantage() { return alphaVantage; }
     public TwelveData getTwelveData() { return twelveData; }
     public NewsApi getNewsApi() { return newsApi; }
@@ -158,12 +162,20 @@ public class AppProperties {
         private String reportCheckCron = "0 0 * * * *";
         /** Cron for independent critical-alert monitoring. */
         private String alertMonitorCron = "0 0 */4 * * *";
+        /** Cron for the daily market-close digest (whole portfolio, always mailed). */
+        private String eodDigestCron = "0 0 16 * * MON-FRI";
+        /** Cron for the midday MEDIUM-signals roundup (silent when empty). */
+        private String mediumRoundupCron = "0 0 13 * * MON-FRI";
         private boolean enabled = true;
 
         public String getReportCheckCron() { return reportCheckCron; }
         public void setReportCheckCron(String v) { this.reportCheckCron = v; }
         public String getAlertMonitorCron() { return alertMonitorCron; }
         public void setAlertMonitorCron(String v) { this.alertMonitorCron = v; }
+        public String getEodDigestCron() { return eodDigestCron; }
+        public void setEodDigestCron(String v) { this.eodDigestCron = v; }
+        public String getMediumRoundupCron() { return mediumRoundupCron; }
+        public void setMediumRoundupCron(String v) { this.mediumRoundupCron = v; }
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean v) { this.enabled = v; }
     }

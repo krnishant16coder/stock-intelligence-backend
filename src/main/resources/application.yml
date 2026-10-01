@@ -44,6 +44,9 @@ spring:
             enable: ${SPRING_MAIL_STARTTLS:false}
 
 app:
+  base-url: ${APP_BASE_URL:}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://polite-beach-04e8b6f00.1.azurestaticapps.net,http://localhost:5173}
   market-data-provider: ${APP_MARKET_DATA_PROVIDER:alphavantage} # alphavantage | twelvedata
   news-provider: ${APP_NEWS_PROVIDER:newsapi}                     # newsapi | gnews | newsdata
   ai-provider: ${APP_AI_PROVIDER:openai}                          # openai (OpenAI-compatible endpoint)
@@ -87,6 +90,8 @@ app:
     enabled: ${APP_SCHEDULING_ENABLED:true}
     report-check-cron: "0 0 * * * *"
     alert-monitor-cron: "0 0 */4 * * *"
+    eod-digest-cron: ${EOD_DIGEST_CRON:0 0 16 * * MON-FRI}
+    medium-roundup-cron: ${MEDIUM_ROUNDUP_CRON:0 0 13 * * MON-FRI}
   notifications:
     enabled: ${APP_NOTIFICATIONS_ENABLED:true}
     default-recipient: ${NOTIFICATION_EMAIL_TO:}

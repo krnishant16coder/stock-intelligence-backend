@@ -3,6 +3,7 @@ package com.stockintelligence.alert;
 public enum AlertType {
     PRICE_SPIKE,
     PRICE_DROP,
+    PRICE_TRIPWIRE,
     WEEKLY_DECLINE,
     MONTHLY_DECLINE,
     VOLUME_SURGE,
