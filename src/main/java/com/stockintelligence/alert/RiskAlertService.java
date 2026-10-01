@@ -7,12 +7,9 @@ import com.stockintelligence.analysis.StockAnalysisResult;
 import com.stockintelligence.common.AppProperties;
 import com.stockintelligence.news.NewsArticle;
 import com.stockintelligence.stock.Stock;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -178,11 +175,28 @@ public class RiskAlertService {
             }
         }
         if (news != null) {
+            // One alert per (stock, news-type) per day — not one per article.
+            // A busy news day (e.g. 10 HDFCBANK regulatory stories) otherwise
+            // becomes 10 HIGH/CRITICAL mails in a minute. The first matching
+            // article is the representative; the count goes into the message.
+            java.util.Map<AlertType, List<NewsArticle>> byType = new java.util.LinkedHashMap<>();
+            java.util.Map<AlertType, Severity> severityByType = new java.util.LinkedHashMap<>();
             for (NewsArticle article : news) {
-                matchNewsCategory(article).ifPresent(match -> out.add(new AlertCandidate(match.type(),
-                        match.defaultSeverity(),
-                        "%s: %s (%s)".formatted(match.type(), article.getTitle(), article.getSource()),
-                        dedup(stock, "NEWS-" + match.type() + "-" + urlHash(article.getUrl()), bucket))));
+                matchNewsCategory(article).ifPresent(match -> {
+                    byType.computeIfAbsent(match.type(), k -> new ArrayList<>()).add(article);
+                    severityByType.putIfAbsent(match.type(), match.defaultSeverity());
+                });
+            }
+            for (var entry : byType.entrySet()) {
+                AlertType type = entry.getKey();
+                List<NewsArticle> matched = entry.getValue();
+                NewsArticle first = matched.get(0);
+                String message = "%s: %s (%s)".formatted(type, first.getTitle(), first.getSource());
+                if (matched.size() > 1) {
+                    message += " [+%d more today]".formatted(matched.size() - 1);
+                }
+                out.add(new AlertCandidate(type, severityByType.get(type), message,
+                        dedup(stock, "NEWS-" + type, bucket)));
             }
         }
         return out;
@@ -265,17 +279,5 @@ public class RiskAlertService {
 
     private static String dedup(Stock stock, String kind, String bucket) {
         return stock.getId() + "|" + kind + "|" + bucket;
-    }
-
-    private static String urlHash(String url) {
-        if (url == null) {
-            return "nourl";
-        }
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(md.digest(url.getBytes(StandardCharsets.UTF_8))).substring(0, 16);
-        } catch (Exception e) {
-            return String.valueOf(url.hashCode());
-        }
     }
 }

@@ -252,6 +252,45 @@ public final class MailTemplate {
         return new MailBodies(plain.toString(), pageHtml(escape(title), inner.toString()));
     }
 
+    // ---- Urgent HIGH/CRITICAL digest (one mail per run) ----
+
+    /**
+     * One combined mail for a monitor/analysis run's HIGH/CRITICAL alerts.
+     * Replaces one-mail-per-alert, which turns a busy news day into a mail storm.
+     */
+    public static MailBodies urgent(String dateLabel, List<Alert> alerts) {
+        String title = "Urgent alerts for " + dateLabel + " — " + alerts.size()
+                + (alerts.size() == 1 ? " high/critical signal" : " high/critical signals");
+        StringBuilder plain = new StringBuilder(title).append("\n\n");
+        StringBuilder inner = new StringBuilder();
+        for (Alert alert : alerts) {
+            String symbol = alert.getStock().getSymbol();
+            String company = alert.getStock().getCompanyName();
+            String type = String.valueOf(alert.getAlertType());
+            String message = alert.getMessage() == null ? "" : alert.getMessage();
+            String when = String.valueOf(alert.getCreatedAt());
+            plain.append(symbol).append(" — ").append(word(type)).append("\n")
+                    .append(message).append("\n")
+                    .append(company).append(" | ").append(when).append("\n\n");
+            inner.append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                    .append("style=\"margin:8px 0;\"><tr><td style=\"border:1px solid #d0d7de;")
+                    .append("border-radius:8px;padding:12px;\">")
+                    .append("<div style=\"font-size:15px;margin-bottom:6px;\"><b>")
+                    .append(escape(symbol)).append("</b> <span style=\"color:#57606a;\">")
+                    .append(escape(company)).append("</span></div>")
+                    .append("<div style=\"margin-bottom:8px;\">")
+                    .append(riskBadge(String.valueOf(alert.getSeverity()))).append("</div>")
+                    .append("<div style=\"font-size:13px;color:#57606a;margin-bottom:8px;\">")
+                    .append(escape(word(type))).append(" &middot; ").append(escape(when))
+                    .append("</div><div style=\"font-size:14px;line-height:1.5;\">")
+                    .append(escape(message)).append("</div></td></tr></table>");
+        }
+        inner.append("<p style=\"font-size:12px;color:#888888;\">Grouped: one alert per stock ")
+                .append("per signal type per day; the full day's picture arrives ")
+                .append("in the 16:00 market-close digest.</p>");
+        return new MailBodies(plain.toString(), pageHtml(escape(title), inner.toString()));
+    }
+
     // ---- Instant alert ----
     public static MailBodies alert(Alert alert) {
         String symbol = alert.getStock().getSymbol();

@@ -63,6 +63,22 @@ public class NotificationService {
     }
 
     /**
+     * Combined HIGH/CRITICAL mail for one monitor/analysis run. One mail per run —
+     * never one mail per alert — so a busy news day can't flood the inbox.
+     * Stays silent (no row, just a log line) when there is nothing urgent.
+     */
+    @Transactional
+    public void sendUrgentDigestEmail(String dateLabel, List<Alert> alerts) {
+        if (alerts == null || alerts.isEmpty()) {
+            log.info("Urgent digest: nothing to report for {}", dateLabel);
+            return;
+        }
+        MailTemplate.MailBodies bodies = MailTemplate.urgent(dateLabel, alerts);
+        send(null, "Urgent — %s (%d high/critical)".formatted(dateLabel, alerts.size()),
+                bodies.plain(), bodies.html());
+    }
+
+    /**
      * Daily market-close digest (whole portfolio). Unlike severity-gated report mails,
      * this always sends — it bypasses the HIGH/CRITICAL severity gate by design.
      * Still respects the enabled flag + recipient (logs SKIPPED when off).

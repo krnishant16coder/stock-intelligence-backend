@@ -242,10 +242,12 @@ public class AnalysisService {
     }
 
     private void notifyAlerts(List<Alert> alerts) {
-        for (Alert alert : alerts) {
-            if (alert.getSeverity() == Severity.HIGH || alert.getSeverity() == Severity.CRITICAL) {
-                notifications.sendAlertEmail(alert);
-            }
+        List<Alert> urgent = alerts.stream()
+                .filter(a -> a.getSeverity() == Severity.HIGH || a.getSeverity() == Severity.CRITICAL)
+                .toList();
+        if (!urgent.isEmpty()) {
+            notifications.sendUrgentDigestEmail(
+                    java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString(), urgent);
         }
     }
 }

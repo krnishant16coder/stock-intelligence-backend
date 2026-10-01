@@ -94,6 +94,10 @@ public class ScheduledTasks {
     /**
      * Independent critical-alert monitoring. Runs on its own cadence regardless of
      * report frequency and uses the latest available provider data (not tick-level).
+     * <p>
+     * Each stock is checked once per run even if it sits in several watchlists,
+     * and all HIGH/CRITICAL alerts go out as ONE combined mail — never one mail
+     * per alert — so a busy news day can't flood the inbox.
      */
     @Scheduled(cron = "${app.scheduling.alert-monitor-cron:0 0 */4 * * *}")
     public void monitorForCriticalAlerts() {
@@ -102,15 +106,31 @@ public class ScheduledTasks {
         }
         List<Watchlist> active = watchlistRepository.findAllByActiveTrue();
         log.info("Alert monitor: checking {} active watchlists", active.size());
+        java.util.Map<Long, Stock> uniqueStocks = new java.util.LinkedHashMap<>();
         for (Watchlist watchlist : active) {
             for (Stock stock : watchlists.stocksOf(watchlist.getId())) {
-                try {
-                    checkStock(stock);
-                } catch (Exception e) {
-                    log.warn("Alert monitor failed for {}: {}", stock.getSymbol(), e.getMessage());
-                }
+                uniqueStocks.putIfAbsent(stock.getId(), stock);
             }
         }
+        List<Alert> urgent = new ArrayList<>();
+        for (Stock stock : uniqueStocks.values()) {
+            try {
+                for (Alert alert : checkStock(stock)) {
+                    if (alert.getSeverity() == Severity.HIGH || alert.getSeverity() == Severity.CRITICAL) {
+                        urgent.add(alert);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Alert monitor failed for {}: {}", stock.getSymbol(), e.getMessage());
+            }
+        }
+        if (urgent.isEmpty()) {
+            log.info("Alert monitor: nothing urgent across {} stocks", uniqueStocks.size());
+            return;
+        }
+        notifications.sendUrgentDigestEmail(today().toString(), urgent);
+        log.info("Alert monitor: mailed {} urgent signals across {} stocks",
+                urgent.size(), uniqueStocks.size());
     }
 
     /**
@@ -171,13 +191,13 @@ public class ScheduledTasks {
         log.info("Medium roundup: mailed {} medium signals for {}", mediums.size(), today());
     }
 
-    private void checkStock(Stock stock) {
+    private List<Alert> checkStock(Stock stock) {
         MarketDataService.MarketDataBundle bundle;
         try {
             bundle = marketData.fetchAndStore(stock);
         } catch (Exception e) {
             log.warn("Monitor: market data failed for {}: {}", stock.getSymbol(), e.getMessage());
-            return;
+            return List.of();
         }
         List<NewsArticle> articles;
         try {
@@ -193,11 +213,7 @@ public class ScheduledTasks {
         var history = bundle.history();
         List<Alert> created = riskAlerts.evaluateAndCreate(stock, metrics, articles, null, null);
         log.debug("Monitor: {} alerts for {} ({} bars)", created.size(), stock.getSymbol(), history.size());
-        for (Alert alert : created) {
-            if (alert.getSeverity() == Severity.HIGH || alert.getSeverity() == Severity.CRITICAL) {
-                notifications.sendAlertEmail(alert);
-            }
-        }
+        return created;
     }
 
     /** Shared helper for tests. */
