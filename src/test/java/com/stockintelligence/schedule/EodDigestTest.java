@@ -22,9 +22,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -51,6 +51,8 @@ class EodDigestTest {
     RiskAlertService riskAlerts;
     @Mock
     NotificationService notifications;
+    @Mock
+    com.stockintelligence.alert.AlertRepository alertRepository;
 
     AppProperties properties;
     ScheduledTasks tasks;
@@ -59,7 +61,7 @@ class EodDigestTest {
     void setUp() {
         properties = new AppProperties();
         tasks = new ScheduledTasks(schedules, analysis, watchlistRepository, watchlists,
-                marketData, news, rules, riskAlerts, notifications, properties);
+                marketData, news, rules, riskAlerts, notifications, alertRepository, properties);
     }
 
     private static Watchlist watchlist(long id, String name) throws Exception {
@@ -91,7 +93,11 @@ class EodDigestTest {
         tasks.sendEodDigest();
 
         verify(analysis).analyzeWatchlist(1L, TriggerType.EOD);
-        verify(notifications).sendEodDigestEmail(anyString(), eq(1), eq(1), contains("TCS"));
+        var captor = org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        verify(notifications).sendEodDigestEmail(anyString(), captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(((com.stockintelligence.report.ReportResponse) captor.getValue().get(0)).watchlistName())
+                .isEqualTo("TCS");
     }
 
     @Test
@@ -101,7 +107,7 @@ class EodDigestTest {
         tasks.sendEodDigest();
 
         verify(watchlistRepository, never()).findAllByActiveTrue();
-        verify(notifications, never()).sendEodDigestEmail(anyString(), anyInt(), anyInt(), anyString());
+        verify(notifications, never()).sendEodDigestEmail(anyString(), anyList());
     }
 
     @Test
@@ -111,7 +117,7 @@ class EodDigestTest {
         tasks.sendEodDigest();
 
         verify(analysis, never()).analyzeWatchlist(1L, TriggerType.EOD);
-        verify(notifications, never()).sendEodDigestEmail(anyString(), anyInt(), anyInt(), anyString());
+        verify(notifications, never()).sendEodDigestEmail(anyString(), anyList());
     }
 
     @Test
@@ -125,6 +131,10 @@ class EodDigestTest {
 
         tasks.sendEodDigest();
 
-        verify(notifications).sendEodDigestEmail(anyString(), eq(1), eq(1), contains("hdfc bank"));
+        var captor = org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        verify(notifications).sendEodDigestEmail(anyString(), captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(((com.stockintelligence.report.ReportResponse) captor.getValue().get(0)).watchlistName())
+                .isEqualTo("hdfc bank");
     }
 }
