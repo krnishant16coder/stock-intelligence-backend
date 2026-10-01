@@ -79,6 +79,27 @@ public class NotificationService {
     }
 
     /**
+     * Manual delivery check for {@code POST /api/admin/test-mail}. Always sends —
+     * never gated on risk — so delivery can be verified on demand.
+     *
+     * @return recipient, subject and whether delivery was attempted
+     *         (false when notifications are disabled or no recipient is configured;
+     *         the attempt is then logged as SKIPPED, not mailed)
+     */
+    @Transactional
+    public TestMailResult sendTestEmail() {
+        String recipient = properties.getNotifications().getDefaultRecipient();
+        String subject = "Test mail — Stock Intelligence";
+        MailTemplate.MailBodies bodies = MailTemplate.testMail(recipient);
+        send(null, subject, bodies.plain(), bodies.html());
+        boolean attempted = properties.getNotifications().isEnabled()
+                && recipient != null && !recipient.isBlank();
+        return new TestMailResult(recipient, subject, attempted);
+    }
+
+    public record TestMailResult(String recipient, String subject, boolean accepted) {}
+
+    /**
      * Daily market-close digest (whole portfolio). Unlike severity-gated report mails,
      * this always sends — it bypasses the HIGH/CRITICAL severity gate by design.
      * Still respects the enabled flag + recipient (logs SKIPPED when off).

@@ -291,6 +291,34 @@ public final class MailTemplate {
         return new MailBodies(plain.toString(), pageHtml(escape(title), inner.toString()));
     }
 
+    // ---- Test mail (manual delivery check) ----
+
+    /**
+     * Sample mail sent by {@code POST /api/admin/test-mail} to verify delivery
+     * to the configured recipient. Always sent — never gated on risk.
+     */
+    public static MailBodies testMail(String recipient) {
+        String sentAt = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).toString();
+        String title = "Test mail from Stock Intelligence";
+        String plain = title + "\n\nThis is a delivery check sent at " + sentAt + ".\n"
+                + "If you can read this, mail delivery to " + (recipient == null ? "" : recipient)
+                + " works.\n\n"
+                + "Regular mails you receive:\n"
+                + "  - EOD market-close digest (16:00 IST weekdays, whole portfolio)\n"
+                + "  - Midday MEDIUM roundup (13:00 IST weekdays, only when medium signals exist)\n"
+                + "  - Urgent digest (one combined mail per run with HIGH/CRITICAL signals)\n"
+                + "  - Watchlist report mail (only for due schedules with HIGH/CRITICAL risk)\n";
+        String inner = "<p style=\"font-size:14px;\">This is a delivery check sent at "
+                + escape(sentAt) + ".</p>"
+                + "<p style=\"font-size:14px;\">If you can read this, mail delivery to <b>"
+                + escape(recipient) + "</b> works.</p>"
+                + "<p style=\"font-size:13px;color:#57606a;\">Regular mails: EOD market-close digest "
+                + "(16:00 IST weekdays) &middot; midday MEDIUM roundup (13:00 IST weekdays) "
+                + "&middot; urgent digest (one combined mail per run) &middot; watchlist report "
+                + "mail (due schedules with HIGH/CRITICAL risk only).</p>";
+        return new MailBodies(plain, pageHtml(escape(title), inner));
+    }
+
     // ---- Instant alert ----
     public static MailBodies alert(Alert alert) {
         String symbol = alert.getStock().getSymbol();
