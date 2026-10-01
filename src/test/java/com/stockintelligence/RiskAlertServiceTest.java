@@ -108,6 +108,50 @@ class RiskAlertServiceTest {
     }
 
     @Test
+    void groupsMultipleArticlesOfSameTypeIntoOneAlert() {
+        NewsArticle a1 = newsArticle("SEBI issues show-cause notice to Reliance over disclosure lapse",
+                "https://example.com/sebi-1");
+        NewsArticle a2 = newsArticle("RBI imposes penalty on Reliance unit for compliance lapse",
+                "https://example.com/rbi-2");
+        NewsArticle a3 = newsArticle("Court admits lawsuit against Reliance subsidiary",
+                "https://example.com/court-3");
+        when(alertRepository.existsByDedupKey(any())).thenReturn(false);
+
+        List<Alert> created =
+                service.evaluateAndCreate(stock, null, List.of(a1, a2, a3), null, null);
+        assertThat(created).hasSize(1);
+        assertThat(created.get(0).getAlertType()).isEqualTo(AlertType.REGULATORY_RISK);
+        assertThat(created.get(0).getSeverity()).isEqualTo(Severity.HIGH);
+        assertThat(created.get(0).getMessage()).contains("[+2 more today]");
+    }
+
+    @Test
+    void groupsOneAlertPerNewsTypePerDay() {
+        NewsArticle regulatory = newsArticle("SEBI issues show-cause notice to Reliance",
+                "https://example.com/sebi-1");
+        NewsArticle fraud = newsArticle("Auditor resigns citing governance concerns at Reliance unit",
+                "https://example.com/audit-1");
+        NewsArticle fraudDup = newsArticle("Forensic audit demanded over fraud allegations",
+                "https://example.com/fraud-2");
+        when(alertRepository.existsByDedupKey(any())).thenReturn(false);
+
+        List<Alert> created =
+                service.evaluateAndCreate(stock, null, List.of(regulatory, fraud, fraudDup), null, null);
+        assertThat(created).extracting(Alert::getAlertType)
+                .containsExactlyInAnyOrder(AlertType.REGULATORY_RISK, AlertType.FRAUD_GOVERNANCE);
+    }
+
+    private static NewsArticle newsArticle(String title, String url) {
+        NewsArticle article = new NewsArticle();
+        article.setTitle(title);
+        article.setSummary("Summary for: " + title);
+        article.setSource("Example Times");
+        article.setUrl(url);
+        article.setPublishedAt(Instant.now());
+        return article;
+    }
+
+    @Test
     void aiInputUsedWhenNoContextAvailable() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Company reports net loss widening, misses estimates");

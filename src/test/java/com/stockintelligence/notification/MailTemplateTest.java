@@ -64,6 +64,29 @@ class MailTemplateTest {
     }
 
     @Test
+    void urgentDigestCombinesHighAndCritical() throws Exception {
+        var ctor = com.stockintelligence.alert.Alert.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        com.stockintelligence.alert.Alert high = ctor.newInstance();
+        high.setStock(new Stock("HDFCBANK", "HDFC Bank", "NSE"));
+        high.setAlertType(com.stockintelligence.alert.AlertType.REGULATORY_RISK);
+        high.setSeverity(com.stockintelligence.alert.Severity.HIGH);
+        high.setMessage("REGULATORY_RISK: RBI penalty (Example) [+2 more today]");
+        com.stockintelligence.alert.Alert critical = ctor.newInstance();
+        critical.setStock(new Stock("TCS", "Tata Consultancy Services", "NSE"));
+        critical.setAlertType(com.stockintelligence.alert.AlertType.FRAUD_GOVERNANCE);
+        critical.setSeverity(com.stockintelligence.alert.Severity.CRITICAL);
+        critical.setMessage("FRAUD_GOVERNANCE: auditor resigns (Example)");
+
+        MailTemplate.MailBodies bodies =
+                MailTemplate.urgent("2026-10-01", List.of(high, critical));
+
+        assertThat(bodies.html()).contains("Urgent alerts", "HDFCBANK", "TCS", "High risk", "Critical risk");
+        assertThat(bodies.html()).contains("16:00 market-close digest");
+        assertThat(bodies.plain()).contains("HDFCBANK", "TCS", "[+2 more today]");
+    }
+
+    @Test
     void roundupListsMediumAlerts() throws Exception {
         var ctor = com.stockintelligence.alert.Alert.class.getDeclaredConstructor();
         ctor.setAccessible(true);
