@@ -93,7 +93,7 @@ public class NotificationService {
         MailTemplate.MailBodies bodies = MailTemplate.testMail(recipient);
         send(null, subject, bodies.plain(), bodies.html());
         boolean attempted = properties.getNotifications().isEnabled()
-                && recipient != null && !recipient.isBlank();
+                && !resolveRecipients(recipient).isEmpty();
         return new TestMailResult(recipient, subject, attempted);
     }
 
@@ -117,10 +117,11 @@ public class NotificationService {
         entry.setAlert(alert);
         entry.setChannel(NotificationChannel.EMAIL);
         entry.setSubject(subject);
-        String recipient = properties.getNotifications().getDefaultRecipient();
-        entry.setRecipient(recipient);
+        String configured = properties.getNotifications().getDefaultRecipient();
+        List<String> recipients = resolveRecipients(configured);
+        entry.setRecipient(String.join(",", recipients));
 
-        if (!properties.getNotifications().isEnabled() || recipient == null || recipient.isBlank()) {
+        if (!properties.getNotifications().isEnabled() || recipients.isEmpty()) {
             entry.setStatus(NotificationStatus.SKIPPED);
             entry.setErrorMessage("Email disabled or no recipient configured");
             repository.save(entry);
@@ -131,18 +132,33 @@ public class NotificationService {
             MimeMessage mime = mailSender.createMimeMessage();
             MimeMessageHelper message = new MimeMessageHelper(mime, true, "UTF-8");
             message.setFrom(properties.getNotifications().getFrom());
-            message.setTo(recipient);
+            message.setTo(recipients.toArray(new String[0]));
             message.setSubject(subject);
             message.setText(plainBody, htmlBody);
             mailSender.send(mime);
             entry.setStatus(NotificationStatus.SENT);
             repository.save(entry);
-            log.info("Notification sent to {}: {}", recipient, subject);
+            log.info("Notification sent to {}: {}", entry.getRecipient(), subject);
         } catch (Exception e) {
             entry.setStatus(NotificationStatus.FAILED);
             entry.setErrorMessage(e.getMessage());
             repository.save(entry);
             log.warn("Notification failed: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Splits {@code NOTIFICATION_EMAIL_TO} on commas so daily mails can go to
+     * several inboxes (e.g. {@code a@gmail.com,b@gmail.com}). Trims entries and
+     * drops blanks; a single address behaves exactly as before.
+     */
+    static List<String> resolveRecipients(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(configured.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 }

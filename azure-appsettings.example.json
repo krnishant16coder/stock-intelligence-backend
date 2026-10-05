@@ -20,7 +20,7 @@
   { "name": "EOD_DIGEST_CRON", "value": "0 0 16 * * MON-FRI", "slotSetting": false },
   { "name": "MEDIUM_ROUNDUP_CRON", "value": "0 0 13 * * MON-FRI", "slotSetting": false },
   { "name": "APP_NOTIFICATIONS_ENABLED", "value": "true", "slotSetting": false },
-  { "name": "NOTIFICATION_EMAIL_TO", "value": "<you@gmail.com>", "slotSetting": false },
+  { "name": "NOTIFICATION_EMAIL_TO", "value": "<you@gmail.com> or <a@gmail.com,b@gmail.com> for several inboxes", "slotSetting": false },
   { "name": "NOTIFICATION_EMAIL_FROM", "value": "<you@gmail.com>", "slotSetting": false },
   { "name": "SPRING_MAIL_HOST", "value": "smtp.gmail.com", "slotSetting": false },
   { "name": "SPRING_MAIL_PORT", "value": "587", "slotSetting": false },
