@@ -88,8 +88,8 @@ app:
     news-max-articles: 20
   scheduling:
     enabled: ${APP_SCHEDULING_ENABLED:true}
-    report-check-cron: "0 0 * * * *"
-    alert-monitor-cron: "0 0 */4 * * *"
+    report-check-cron: ${REPORT_CHECK_CRON:0 0 * * * *}
+    alert-monitor-cron: ${ALERT_MONITOR_CRON:0 0 */4 * * *}
     eod-digest-cron: ${EOD_DIGEST_CRON:0 0 16 * * MON-FRI}
     medium-roundup-cron: ${MEDIUM_ROUNDUP_CRON:0 0 13 * * MON-FRI}
   notifications:

@@ -71,8 +71,8 @@ public class ScheduledTasks {
         this.properties = properties;
     }
 
-    /** Every hour: run due report schedules and advance next_run_at. */
-    @Scheduled(cron = "${app.scheduling.report-check-cron:0 0 * * * *}")
+    /** Every hour: run due report schedules and advance next_run_at. Zone pinned so Azure UTC can't shift it. */
+    @Scheduled(cron = "${app.scheduling.report-check-cron:0 0 * * * *}", zone = "Asia/Kolkata")
     public void runDueReportSchedules() {
         if (!properties.getScheduling().isEnabled()) {
             return;
@@ -98,8 +98,9 @@ public class ScheduledTasks {
      * Each stock is checked once per run even if it sits in several watchlists,
      * and all HIGH/CRITICAL alerts go out as ONE combined mail — never one mail
      * per alert — so a busy news day can't flood the inbox.
+     * Zone pinned to Asia/Kolkata so Azure's UTC default can't shift it.
      */
-    @Scheduled(cron = "${app.scheduling.alert-monitor-cron:0 0 */4 * * *}")
+    @Scheduled(cron = "${app.scheduling.alert-monitor-cron:0 0 */4 * * *}", zone = "Asia/Kolkata")
     public void monitorForCriticalAlerts() {
         if (!properties.getScheduling().isEnabled()) {
             return;

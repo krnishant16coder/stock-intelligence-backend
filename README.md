@@ -3,7 +3,15 @@
 Spring Boot modular monolith for personal stock intelligence: watchlists of Indian equities (NSE/BSE),
 scheduled AI-powered analysis reports, and independent critical-alert monitoring. REST APIs only (no frontend).
 
-## Quick start
+## Server (Azure — no local dependency)
+
+1. Portal `stockintel-api-new > Configuration > Application settings`: import `azure-appsettings.example.json` and fill `<...>` values (Neon + Gmail App-Password + API keys).
+2. Portal `General settings`: `Stack Java 21`, `Always On: On (Basic B1+)`, `Health check: /actuator/health`, `Scale out Manual: 1` (V1 scheduler is single-instance, all 4 crons pinned `Asia/Kolkata`).
+3. `git push main` triggers `.github/workflows/main_stockintel-api-new.yml` (`mvn clean install` → JAR deploy). No `docker compose` / `.env` / `localhost` needed.
+4. Verify server-only: `https://stockintel-api-new.azurewebsites.net/actuator/health → UP`, `POST .../api/admin/test-mail → accepted:true` + Gmail received, `Log stream` shows `Schedule check: / EOD digest: mailed`.
+5. Daily mails: `EOD 16:00 IST Mon-Fri` always mailed, `roundup 13:00 IST` if MEDIUM, `alert-monitor` every 4h, `report-check` hourly (`REPORT_CHECK_CRON / ALERT_MONITOR_CRON / EOD_DIGEST_CRON / MEDIUM_ROUNDUP_CRON`).
+
+## Quick start (local dev alternative)
 
 1. Start infrastructure: `docker compose up -d` (PostgreSQL on 5432, MailHog SMTP on 1025 / UI on 8025).
 2. Copy `.env.example` to `.env` and fill in API keys (or export the vars).
