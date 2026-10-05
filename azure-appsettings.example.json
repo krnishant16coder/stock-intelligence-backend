@@ -28,7 +28,7 @@
   { "name": "SPRING_MAIL_PASSWORD", "value": "<16-char-gmail-app-password>", "slotSetting": false },
   { "name": "SPRING_MAIL_AUTH", "value": "true", "slotSetting": false },
   { "name": "SPRING_MAIL_STARTTLS", "value": "true", "slotSetting": false },
-  { "name": "APP_BASE_URL", "value": "https://stockintel-api-new.azurewebsites.net", "slotSetting": false },
+  { "name": "APP_BASE_URL", "value": "https://stockintel-api-new-b7bafzh6hhb9edhq.centralindia-01.azurewebsites.net", "slotSetting": false },
   { "name": "APP_CORS_ALLOWED_ORIGINS", "value": "https://polite-beach-04e8b6f00.1.azurestaticapps.net", "slotSetting": false },
   { "name": "WEBSITES_PORT", "value": "8080", "slotSetting": false }
 ]
