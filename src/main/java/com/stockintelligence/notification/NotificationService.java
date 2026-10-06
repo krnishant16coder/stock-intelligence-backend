@@ -91,10 +91,8 @@ public class NotificationService {
         String recipient = properties.getNotifications().getDefaultRecipient();
         String subject = "Test mail — Stock Intelligence";
         MailTemplate.MailBodies bodies = MailTemplate.testMail(recipient);
-        send(null, subject, bodies.plain(), bodies.html());
-        boolean attempted = properties.getNotifications().isEnabled()
-                && !resolveRecipients(recipient).isEmpty();
-        return new TestMailResult(recipient, subject, attempted);
+        NotificationStatus status = send(null, subject, bodies.plain(), bodies.html());
+        return new TestMailResult(recipient, subject, status == NotificationStatus.SENT);
     }
 
     public record TestMailResult(String recipient, String subject, boolean accepted) {}
@@ -112,7 +110,7 @@ public class NotificationService {
                 bodies.plain(), bodies.html());
     }
 
-    private void send(Alert alert, String subject, String plainBody, String htmlBody) {
+    private NotificationStatus send(Alert alert, String subject, String plainBody, String htmlBody) {
         NotificationLog entry = new NotificationLog();
         entry.setAlert(alert);
         entry.setChannel(NotificationChannel.EMAIL);
@@ -126,7 +124,7 @@ public class NotificationService {
             entry.setErrorMessage("Email disabled or no recipient configured");
             repository.save(entry);
             log.info("Notification skipped (no recipient/disabled): {}", subject);
-            return;
+            return NotificationStatus.SKIPPED;
         }
         try {
             MimeMessage mime = mailSender.createMimeMessage();
@@ -139,11 +137,13 @@ public class NotificationService {
             entry.setStatus(NotificationStatus.SENT);
             repository.save(entry);
             log.info("Notification sent to {}: {}", entry.getRecipient(), subject);
+            return NotificationStatus.SENT;
         } catch (Exception e) {
             entry.setStatus(NotificationStatus.FAILED);
             entry.setErrorMessage(e.getMessage());
             repository.save(entry);
             log.warn("Notification failed: {}", e.getMessage());
+            return NotificationStatus.FAILED;
         }
     }
 

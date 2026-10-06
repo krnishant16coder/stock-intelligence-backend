@@ -15,6 +15,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -114,5 +115,20 @@ class NotificationServiceMultiRecipientTest {
 
         assertThat(result.accepted()).isFalse();
         verify(mailSender, never()).send((MimeMessage) any());
+    }
+
+    @Test
+    void smtpFailureIsReportedAsNotAccepted() throws Exception {
+        stubMimeMessage();
+        properties.getNotifications().setDefaultRecipient("a@gmail.com");
+        doThrow(new RuntimeException("535 Authentication failed"))
+                .when(mailSender).send((MimeMessage) any());
+
+        NotificationService.TestMailResult result = service.sendTestEmail();
+
+        assertThat(result.accepted()).isFalse();
+        ArgumentCaptor<NotificationLog> log = ArgumentCaptor.forClass(NotificationLog.class);
+        verify(repository).save(log.capture());
+        assertThat(log.getValue().getStatus()).isEqualTo(NotificationStatus.FAILED);
     }
 }
