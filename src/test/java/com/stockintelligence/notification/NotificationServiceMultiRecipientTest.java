@@ -131,4 +131,17 @@ class NotificationServiceMultiRecipientTest {
         verify(repository).save(log.capture());
         assertThat(log.getValue().getStatus()).isEqualTo(NotificationStatus.FAILED);
     }
+
+    @Test
+    void fromCarriesDisplayName() throws Exception {
+        stubMimeMessage();
+        properties.getNotifications().setDefaultRecipient("a@gmail.com");
+
+        service.sendTestEmail();
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(((jakarta.mail.internet.InternetAddress) captor.getValue().getFrom()[0])
+                .getPersonal()).isEqualTo("Stock Intelligence");
+    }
 }

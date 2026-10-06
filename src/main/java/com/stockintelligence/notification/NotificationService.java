@@ -129,7 +129,7 @@ public class NotificationService {
         try {
             MimeMessage mime = mailSender.createMimeMessage();
             MimeMessageHelper message = new MimeMessageHelper(mime, true, "UTF-8");
-            message.setFrom(properties.getNotifications().getFrom());
+            message.setFrom(properties.getNotifications().getFrom(), "Stock Intelligence");
             message.setTo(recipients.toArray(new String[0]));
             message.setSubject(subject);
             message.setText(plainBody, htmlBody);
